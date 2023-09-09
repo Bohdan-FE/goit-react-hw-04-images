@@ -1,90 +1,74 @@
 import { fetchItems } from 'api/api';
-import SearchBar from './Searchbar/Searchbar';
-import { Component } from 'react';
+import { SearchBar } from './Searchbar/Searchbar';
+import { useEffect, useState } from 'react';
 import ImageGallery from './ImageGallery/ImageGallery';
 import Button from './Button/Button';
-import Modal from './Modal/Modal';
+import { Modal } from './Modal/Modal';
 import Loader from './Loader/Loader';
 
-export class App extends Component {
-  state = {
-    items: [],
-    value: '',
-    page: 1,
-    loader: false,
-    showBtn: false,
-    modal: {
-      isActive: false,
-      largeImg: '',
-      tag: '',
-    },
-  };
+export const App = () => {
+  const [items, setItems] = useState([]);
+  const [value, setValue] = useState('');
+  const [page, setPage] = useState(1);
+  const [loader, setLoader] = useState(false);
+  const [showBtn, setShowBtn] = useState(false);
+  const [isModalActive, setIsModalActive] = useState(false);
+  const [largeImage, setLargeImage] = useState('');
+  const [tag, setTag] = useState('');
 
-  async componentDidUpdate(prevProps, prevState) {
-    if (
-      prevState.value !== this.state.value ||
-      this.state.page !== prevState.page
-    ) {
-      this.setState({ loader: true });
-      try {
-        const items = await fetchItems(this.state.value, this.state.page);
-        this.setState(prevState => {
-          return {
-            items: [...prevState.items, ...items.hits],
-            showBtn: this.state.page < Math.ceil(items.totalHits / 20),
-          };
-        });
-      } catch (error) {
-        console.log(error);
-      } finally {
-        this.setState({ loader: false });
-      }
+  useEffect(() => {
+    if (value) {
+      const getItems = async () => {
+        setLoader(true);
+        try {
+          const items = await fetchItems(value, page);
+          setItems(prev => [...prev, ...items.hits]);
+          setShowBtn(page < Math.ceil(items.totalHits / 20));
+        } catch (error) {
+          console.log(error);
+        } finally {
+          setLoader(false);
+        }
+      };
+      getItems();
     }
-  }
+  }, [page, value]);
 
-  handleSubmit = value => {
-    this.setState({ value, page: 1, items: [] });
+  const handleSubmit = data => {
+    setValue(data);
+    setPage(1);
+    setItems([]);
   };
 
-  handleClick = () => {
-    this.setState(prevState => ({ page: prevState.page + 1 }));
+  const handleClick = () => {
+    setPage(prev => prev + 1);
   };
 
-  handleZoom = (url, tag) => {
-    this.setState({
-      modal: {
-        isActive: true,
-        largeImg: url,
-        tag: tag,
-      },
-    });
+  const handleZoom = (url, tag) => {
+    setIsModalActive(true);
+    setLargeImage(url);
+    setTag(tag);
   };
 
-  handleCloseModal = e => {
-    this.setState({
-      modal: {
-        isActive: false,
-        largeImg: '',
-        tag: '',
-      },
-    });
+  const handleCloseModal = e => {
+    setIsModalActive(false);
+    setLargeImage('');
+    setTag('');
   };
 
-  render() {
-    return (
-      <div>
-        <SearchBar onSubmit={this.handleSubmit} />
-        <ImageGallery items={this.state.items} handleZoom={this.handleZoom} />
-        {this.state.loader && <Loader />}
-        {this.state.showBtn && <Button onClick={this.handleClick} />}
-        {this.state.modal.isActive && (
-          <Modal
-            largeImg={this.state.modal.largeImg}
-            tag={this.state.modal.tag}
-            handleCloseModal={this.handleCloseModal}
-          />
-        )}
-      </div>
-    );
-  }
-}
+  return (
+    <div>
+      <SearchBar onSubmit={handleSubmit} />
+      <ImageGallery items={items} handleZoom={handleZoom} />
+      {loader && <Loader />}
+      {showBtn && <Button onClick={handleClick} />}
+      {isModalActive && (
+        <Modal
+          largeImg={largeImage}
+          tag={tag}
+          handleCloseModal={handleCloseModal}
+        />
+      )}
+    </div>
+  );
+};
